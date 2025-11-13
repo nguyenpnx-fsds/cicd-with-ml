@@ -1,0 +1,8 @@
+{
+  "total_samples": 28,
+  "positive_samples": 12,
+  "negative_samples": 12,
+  "neutral_samples": 4,
+  "feature_count": 47,
+  "training_time": "2025-08-05T01:28:50.506295"
+}

@@ -1,0 +1,23 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: sentiment-model
+  namespace: ml-models
+spec:
+  predictor:
+    containers:
+    - name: kserve-container
+      image: sentiment-model:latest
+      ports:
+      - containerPort: 8080
+        protocol: TCP
+      env:
+      - name: STORAGE_URI
+        value: "file:///opt/model"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi

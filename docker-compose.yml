@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Sentiment Analysis API
+  sentiment-api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+    volumes:
+      - ./models:/app/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+  # Data Pipeline (runs once and exits)
+  data-pipeline:
+    build:
+      context: ./data-pipeline
+      dockerfile: Dockerfile
+    volumes:
+      - ./models:/app/models
+    environment:
+      - ENVIRONMENT=development
+    networks:
+      - ai-network
+    depends_on:
+      - sentiment-api
+
+
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  models-data:
