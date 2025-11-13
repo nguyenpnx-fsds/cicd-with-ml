@@ -31,7 +31,7 @@ pipeline {
         // Keep only the last 10 builds
         buildDiscarder(logRotator(numToKeepStr: '10'))
         // Add timestamps to console output
-        timestamps()
+        // timestamps()
     }
 
     stages {
