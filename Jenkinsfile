@@ -64,8 +64,18 @@ pipeline {
                     changedFiles.each { file -> echo "${file}" }
 
                     // Set component flags based on changed files
-                    env.API_CHANGED = (changedFiles.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
-                    env.PIPELINE_CHANGED = (changedFiles.any { it.startsWith('training-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
+                    env.API_CHANGED = (
+                        changedFiles.any { f ->
+                            def file = f.trim()
+                            file.startsWith('api/') || file.startsWith('serving-pipeline/')
+                        } || changedFiles.contains('all')
+                    ) ? 'true' : 'false'
+                    env.PIPELINE_CHANGED = (
+                        changedFiles.any { f ->
+                            def file = f.trim()
+                            file.startsWith('training-pipeline/')
+                        } || changedFiles.contains('all')
+                    ) ? 'true' : 'false'
 
                     echo ""
                     echo "COMPONENTS TO PROCESS:"
