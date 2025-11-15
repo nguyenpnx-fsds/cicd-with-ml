@@ -66,7 +66,7 @@ pipeline {
                     }
 
                     // Set component flags based on changed files
-                    env.API_CHANGED = (changedFiles.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
+                    env.API_CHANGED = (changedFiles.any { f -> f.toString().startsWith('api/') || f.toString().startsWith('serving-pipeline/') }) ? 'true' : 'false'
                     env.PIPELINE_CHANGED = (changedFiles.any { it.startsWith('training-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
 
                     echo ""
