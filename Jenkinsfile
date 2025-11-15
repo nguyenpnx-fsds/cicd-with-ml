@@ -60,18 +60,14 @@ pipeline {
                         changedFiles = ['all']
                     }
 
-                    // Force to list
-                    def files = changedFiles instanceof List
-                        ? changedFiles
-                        : changedFiles.split("\n").collect { it.trim() }.findAll { it }
+                    echo "Changed Files:"
+                    changedFiles.each { file ->
+                        echo " -> '${file}' (length: ${file.length()}) '${file.startsWith('api/')}'"
+                    }
 
-                    // Debug
-                    files.each { f -> echo "FILE: $f" }
-
-                    // Now use correctly
-                    env.API_CHANGED = files.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') } ? 'true' : 'false'
-                    env.PIPELINE_CHANGED = files.any { it.startsWith('training-pipeline/') } ? 'true' : 'false'
-
+                    // Set component flags based on changed files
+                    env.API_CHANGED = (changedFiles.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
+                    env.PIPELINE_CHANGED = (changedFiles.any { it.startsWith('training-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
 
                     echo ""
                     echo "COMPONENTS TO PROCESS:"
@@ -160,7 +156,7 @@ pipeline {
                     when {
                         environment name: 'PIPELINE_CHANGED', value: 'true'
                     }
-                    steps {changedFiles
+                    steps {
                         echo "Running training pipeline tests..."
                         sh '''
                             cd training-pipeline
