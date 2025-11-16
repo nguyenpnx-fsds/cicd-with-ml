@@ -88,112 +88,57 @@ pipeline {
         }
 
         stage('📋 Get Semantic Version') {
-            // steps {
-                agent {
-                    kubernetes {
-                        containerTemplate {
-                            name 'kube'
-                            image  'xuannguyenhehe/custom-jenkins:0.0.3'
-                            alwaysPullImage true
-                        }
+            agent {
+                kubernetes {
+                    containerTemplate {
+                        name 'gitversion'
+                        image  'gittools/gitversion:latest'
+                        alwaysPullImage true
                     }
                 }
-                steps {
-                    script {
-                        container('kube') {
-                            sh 'kubectl get pod -n jenkins'
+            }
+            steps {
+                script {
+                    container('gitversion') {
+                        echo "=" * 50
+                        echo "DETERMINING SEMANTIC VERSION"
+                        echo "=" * 50
+
+                        try {
+                            // Get semantic version inside docker agent
+                            def semanticVersion = sh(
+                                script: 'gitversion /showvariable FullSemVer',
+                                returnStdout: true
+                                ).trim()
+
+                            env.SEMANTIC_VERSION = semanticVersion
+                            env.IMAGE_TAG = semanticVersion
+
+                            echo "Semantic Version: ${env.SEMANTIC_VERSION}"
+                            echo "Image Tag: ${env.IMAGE_TAG}"
+
+                            // Full JSON metadata
+                            def versionInfo = sh(
+                                script: 'gitversion /output json',
+                                returnStdout: true
+                                ).trim()
+
+                            echo "Full Version Information:"
+                            echo versionInfo
+
+                        } catch (Exception e) {
+                            echo "Warning: Could not determine semantic version, falling back to build number"
+                            env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
+                            env.IMAGE_TAG = "${BUILD_NUMBER}"
+                            echo "Using fallback version: ${env.IMAGE_TAG}"
                         }
+
+                        echo ""
+                        echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
+                        echo ""
                     }
-                    // script {
-                    //     echo "=" * 50
-                    //     echo "DETERMINING SEMANTIC VERSION"
-                    //     echo "=" * 50
-
-                    //     try {
-                    //         // Get semantic version inside docker agent
-                    //         def semanticVersion = sh(
-                    //             script: 'gitversion /showvariable FullSemVer',
-                    //             returnStdout: true
-                    //             ).trim()
-
-                    //         env.SEMANTIC_VERSION = semanticVersion
-                    //         env.IMAGE_TAG = semanticVersion
-
-                    //         echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                    //         echo "Image Tag: ${env.IMAGE_TAG}"
-
-                    //         // Full JSON metadata
-                    //         def versionInfo = sh(
-                    //             script: 'gitversion /output json',
-                    //             returnStdout: true
-                    //             ).trim()
-
-                    //         echo "Full Version Information:"
-                    //         echo versionInfo
-
-                    //     } catch (Exception e) {
-                    //         echo "Warning: Could not determine semantic version, falling back to build number"
-                    //         env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
-                    //         env.IMAGE_TAG = "${BUILD_NUMBER}"
-                    //         echo "Using fallback version: ${env.IMAGE_TAG}"
-                    //     }
-
-                    //     echo ""
-                    //     echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
-                    //     echo ""
-                    // }
                 }
-                // script {
-                //     echo "=" * 50
-                //     echo "DETERMINING SEMANTIC VERSION"
-                //     echo "=" * 50
-
-                //     try {
-                //         // Get semantic version using GitVersion
-                //         def semanticVersion = sh(
-                //             script: '''
-                //                 docker run --rm \
-                //                   -v "$(pwd)":/repo \
-                //                   -w /repo \
-                //                   gittools/gitversion:latest \
-                //                   /repo /showvariable FullSemVer
-                //             ''',
-                //             returnStdout: true
-                //         ).trim()
-
-                //         env.SEMANTIC_VERSION = semanticVersion
-                //         env.IMAGE_TAG = semanticVersion
-
-                //         echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                //         echo "Image Tag: ${env.IMAGE_TAG}"
-
-                //         // Also get additional version information for logging
-                //         def versionInfo = sh(
-                //             script: '''
-                //                 docker run --rm \
-                //                   -v "$(pwd)":/repo \
-                //                   -w /repo \
-                //                   gittools/gitversion:latest \
-                //                   /repo /output json
-                //             ''',
-                //             returnStdout: true
-                //         ).trim()
-
-                //         echo "Full Version Information:"
-                //         echo versionInfo
-
-                //     } catch (Exception e) {
-                //         echo "Warning: Could not determine semantic version, falling back to build number"
-                //         env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
-                //         env.IMAGE_TAG = "${BUILD_NUMBER}"
-                //         echo "Using fallback version: ${env.IMAGE_TAG}"
-                //     }
-
-                //     echo ""
-                //     echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
-                //     echo ""
-                // }
-            // }
+            }
         }
 
         stage('Run Tests') {
