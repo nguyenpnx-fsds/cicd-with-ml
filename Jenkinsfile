@@ -101,7 +101,7 @@ pipeline {
                 steps {
                     script {
                         container('kube') {
-                            sh 'kubectl get ns'
+                            sh 'kubectl get pod -n jenkins'
                         }
                     }
                     // script {
