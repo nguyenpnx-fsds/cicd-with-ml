@@ -71,7 +71,7 @@ pipeline {
 
                     env.API_CHANGED = apiChanged ? 'true' : 'false'
                     echo "DEBUG any(api/): ${apiChanged} ${apiChanged ? 'true' : 'false'}"
-                    echo "API_CHANGED: ${env.API_CHANGED}"
+                    echo "API_CHANGED: ${env.API_CHANGED} ${apiChanged ? 'true' : 'false'}"
 
                     // env.API_CHANGED = (changedFiles.any { f -> f.toString().startsWith('api/') || f.toString().startsWith('serving-pipeline/') }) ? 'true' : 'false'
                     env.PIPELINE_CHANGED = (changedFiles.any { it.startsWith('training-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
