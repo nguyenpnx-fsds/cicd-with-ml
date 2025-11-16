@@ -221,64 +221,66 @@ pipeline {
 
         stage('Build & Deploy') {
             parallel {
-                stages {
+                stage('Serving Pipeline Build & Deploy') {
                     // when {
                     //     environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     // }
-                    stage('Build image for Serving Pipeline') {
-                        agent {
-                            kubernetes {
-                                containerTemplate {
-                                    name 'docker'
-                                    image  'docker:27-dind'
-                                    alwaysPullImage true
-                                    privileged true
+                    stages {
+                        stage('Build image for Serving Pipeline') {
+                            agent {
+                                kubernetes {
+                                    containerTemplate {
+                                        name 'docker'
+                                        image  'docker:27-dind'
+                                        alwaysPullImage true
+                                        privileged true
+                                    }
                                 }
                             }
-                        }
-                        steps {
-                            script {
-                                container('docker') {
-                                    dir('serving-pipeline') {
-                                        // Build KServe model image
-                                        sh('docker build --no-cache -t sentiment-model:${IMAGE_TAG} .')
-                                        sh('docker tag sentiment-model:${IMAGE_TAG} sentiment-model:latest')
+                            steps {
+                                script {
+                                    container('docker') {
+                                        dir('serving-pipeline') {
+                                            // Build KServe model image
+                                            sh('docker build --no-cache -t sentiment-model:${IMAGE_TAG} .')
+                                            sh('docker tag sentiment-model:${IMAGE_TAG} sentiment-model:latest')
 
-                                        echo "Model image built successfully"
+                                            echo "Model image built successfully"
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    stage('Deploy Serving Pipeline') {
-                        agent {
-                            kubernetes {
-                                containerTemplate {
-                                    name 'kubectl'
-                                    image  'bitnami/kubectl:latest'
-                                    alwaysPullImage true
+                        stage('Deploy Serving Pipeline') {
+                            agent {
+                                kubernetes {
+                                    containerTemplate {
+                                        name 'kubectl'
+                                        image  'bitnami/kubectl:latest'
+                                        alwaysPullImage true
+                                    }
                                 }
                             }
-                        }
-                        steps {
-                            script {
-                                container('kubectl') {
-                                    dir('serving-pipeline') {
-                                        // Create namespace if it doesn't exist
-                                        sh '''
-                                            kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
-                                        '''
+                            steps {
+                                script {
+                                    container('kubectl') {
+                                        dir('serving-pipeline') {
+                                            // Create namespace if it doesn't exist
+                                            sh '''
+                                                kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
+                                            '''
 
-                                        // Deploy KServe InferenceService
-                                        sh '''
-                                            # Update image tag in inference service
-                                            sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
+                                            // Deploy KServe InferenceService
+                                            sh '''
+                                                # Update image tag in inference service
+                                                sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
 
-                                            # Apply the inference service
-                                            kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
-                                        '''
+                                                # Apply the inference service
+                                                kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
+                                            '''
 
-                                        echo "KServe InferenceService deployed successfully"
+                                            echo "KServe InferenceService deployed successfully"
+                                        }
                                     }
                                 }
                             }
