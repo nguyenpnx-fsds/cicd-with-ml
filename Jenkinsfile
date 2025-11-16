@@ -83,8 +83,6 @@ pipeline {
                     echo "   Serving Pipeline: ${env.API_CHANGE}"
                     echo "   Training Pipeline: ${env.PIPELINE_CHANGED}"
                     echo ""
-
-                    sh 'kubectl apply'
                 }
             }
         }
@@ -101,7 +99,11 @@ pipeline {
                     }
                 }
                 steps {
-                    echo 'kubectl get ns'
+                    script {
+                        container('kube') {
+                            sh 'kubectl get ns'
+                        }
+                    }
                     // script {
                     //     echo "=" * 50
                     //     echo "DETERMINING SEMANTIC VERSION"
