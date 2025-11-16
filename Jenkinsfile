@@ -91,13 +91,17 @@ pipeline {
 
         stage('📋 Get Semantic Version') {
             // steps {
-                // agent {
-                //     docker {
-                //         image 'gittools/gitversion:latest'
-                //     }
-                // }
+                agent {
+                    kubernetes {
+                        containerTemplate {
+                            name 'kube'
+                            image  'xuannguyenhehe/custom-jenkins:0.0.4'
+                            alwaysPullImage true
+                        }
+                    }
+                }
                 steps {
-                    echo 'abc'
+                    echo 'kubectl get ns'
                     // script {
                     //     echo "=" * 50
                     //     echo "DETERMINING SEMANTIC VERSION"
