@@ -219,9 +219,9 @@ pipeline {
             }
         }
 
-        stage {
+        stage('Build & Deploy') {
             parallel {
-                stage('Serving Pipeline Build & Deploy') {
+                stages {
                     // when {
                     //     environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     // }
