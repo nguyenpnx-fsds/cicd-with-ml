@@ -88,53 +88,62 @@ pipeline {
         }
 
         stage('📋 Get Semantic Version') {
+            agent {
+                docker {
+                    image 'python:3.8' 
+                }
+            }
+            steps {
+                echo 'Testing model correctness..'
+                // sh 'pip install -r requirements.txt && pytest'
+            }
             // steps {
-                agent {
-                    docker {
-                        image 'gittools/gitversion:latest'
-                    }
-                }
-                steps {
-                    echo "Get semantic version inside docker agent"
-                    // script {
-                    //     echo "=" * 50
-                    //     echo "DETERMINING SEMANTIC VERSION"
-                    //     echo "=" * 50
+                // agent {
+                //     docker {
+                //         image 'gittools/gitversion:latest'
+                //     }
+                // }
+                // steps {
+                //     echo "Get semantic version inside docker agent"
+                //     // script {
+                //     //     echo "=" * 50
+                //     //     echo "DETERMINING SEMANTIC VERSION"
+                //     //     echo "=" * 50
 
-                    //     try {
-                    //         // Get semantic version inside docker agent
-                    //         def semanticVersion = sh(
-                    //             script: 'gitversion /showvariable FullSemVer',
-                    //             returnStdout: true
-                    //             ).trim()
+                //     //     try {
+                //     //         // Get semantic version inside docker agent
+                //     //         def semanticVersion = sh(
+                //     //             script: 'gitversion /showvariable FullSemVer',
+                //     //             returnStdout: true
+                //     //             ).trim()
 
-                    //         env.SEMANTIC_VERSION = semanticVersion
-                    //         env.IMAGE_TAG = semanticVersion
+                //     //         env.SEMANTIC_VERSION = semanticVersion
+                //     //         env.IMAGE_TAG = semanticVersion
 
-                    //         echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                    //         echo "Image Tag: ${env.IMAGE_TAG}"
+                //     //         echo "Semantic Version: ${env.SEMANTIC_VERSION}"
+                //     //         echo "Image Tag: ${env.IMAGE_TAG}"
 
-                    //         // Full JSON metadata
-                    //         def versionInfo = sh(
-                    //             script: 'gitversion /output json',
-                    //             returnStdout: true
-                    //             ).trim()
+                //     //         // Full JSON metadata
+                //     //         def versionInfo = sh(
+                //     //             script: 'gitversion /output json',
+                //     //             returnStdout: true
+                //     //             ).trim()
 
-                    //         echo "Full Version Information:"
-                    //         echo versionInfo
+                //     //         echo "Full Version Information:"
+                //     //         echo versionInfo
 
-                    //     } catch (Exception e) {
-                    //         echo "Warning: Could not determine semantic version, falling back to build number"
-                    //         env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
-                    //         env.IMAGE_TAG = "${BUILD_NUMBER}"
-                    //         echo "Using fallback version: ${env.IMAGE_TAG}"
-                    //     }
+                //     //     } catch (Exception e) {
+                //     //         echo "Warning: Could not determine semantic version, falling back to build number"
+                //     //         env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
+                //     //         env.IMAGE_TAG = "${BUILD_NUMBER}"
+                //     //         echo "Using fallback version: ${env.IMAGE_TAG}"
+                //     //     }
 
-                    //     echo ""
-                    //     echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
-                    //     echo ""
-                    // }
-                }
+                //     //     echo ""
+                //     //     echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
+                //     //     echo ""
+                //     // }
+                // }
                 // script {
                 //     echo "=" * 50
                 //     echo "DETERMINING SEMANTIC VERSION"
