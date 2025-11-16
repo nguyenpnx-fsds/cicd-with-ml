@@ -2,7 +2,8 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: sentiment-model
-  namespace: ml-models
+  # namespace: ml-models
+  namespace: jenkins
 spec:
   predictor:
     containers:

@@ -19,12 +19,12 @@ pipeline {
         PROJECT_NAME = 'ai-sentiment'
 
         // Semantic version variables (set in Get Semantic Version stage)
-        SEMANTIC_VERSION = ''
-        IMAGE_TAG = ''
+        // SEMANTIC_VERSION = ''
+        // IMAGE_TAG = ''
 
         // Component change flags (set in Detect Changes stage)
-        API_CHANGED = 'false'
-        CHANGED_TRAINING_PIPELINE = 'false'
+        // API_CHANGED = 'false'
+        // CHANGED_TRAINING_PIPELINE = 'false'
     }
 
     options {
@@ -259,7 +259,7 @@ pipeline {
                                 kubernetes {
                                     containerTemplate {
                                         name 'kubectl'
-                                        image  'bitnami/kubectl:latest'
+                                        image  'xuannguyenhehe/custom-jenkins:0.0.3'
                                         alwaysPullImage true
                                     }
                                 }
@@ -269,9 +269,9 @@ pipeline {
                                     container('kubectl') {
                                         dir('serving-pipeline') {
                                             // Create namespace if it doesn't exist
-                                            sh '''
+                                            sh """
                                                 kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
-                                            '''
+                                            """
 
                                             // Deploy KServe InferenceService
                                             sh """
