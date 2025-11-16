@@ -118,6 +118,8 @@ pipeline {
                                 returnStdout: true
                             ).trim()
 
+                            echo "Determined Semantic Version: ${semanticVersion}"
+
                             env.SEMANTIC_VERSION = semanticVersion
                             env.IMAGE_TAG = semanticVersion
 
@@ -158,7 +160,7 @@ pipeline {
             parallel {
                 stage('Serving Pipeline Tests') {
                     when {
-                        environment name: 'API_CHANGED', value: 'true'
+                        environment name: 'API_CHANGE', value: 'true'
                     }
                     steps {
                         echo "Running serving pipeline tests..."
