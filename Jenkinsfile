@@ -102,6 +102,8 @@ pipeline {
             }
             steps {
                 echo 'Testing model correctness..'
+                sh 'pip install pandas'
+                echo 'Running tests...'
                 // sh 'pip install -r requirements.txt && pytest'
             }
             // steps {
