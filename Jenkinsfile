@@ -94,6 +94,7 @@ pipeline {
                         name 'gitversion'
                         image  'gittools/gitversion:latest'
                         alwaysPullImage true
+                        workingDir '/repo'
                     }
                 }
             }
@@ -109,7 +110,7 @@ pipeline {
                             def semanticVersion = sh(
                                 script: 'gitversion /showvariable FullSemVer',
                                 returnStdout: true
-                                ).trim()
+                            ).trim()
 
                             env.SEMANTIC_VERSION = semanticVersion
                             env.IMAGE_TAG = semanticVersion
