@@ -219,7 +219,7 @@ pipeline {
             }
         }
 
-        stage('Build & Deploy') {
+        stage {
             parallel {
                 stage('Serving Pipeline Build & Deploy') {
                     // when {
