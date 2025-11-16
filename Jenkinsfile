@@ -89,9 +89,15 @@ pipeline {
 
         stage('📋 Get Semantic Version') {
             agent {
-                docker {
-                    image 'python:3.8' 
-                }
+                kubernetes {
+                    yaml """
+                        apiVersion: v1
+                        kind: Pod
+                        spec:
+                        containers:
+                          - name: python
+                            image: python:3.8
+                """
             }
             steps {
                 echo 'Testing model correctness..'
