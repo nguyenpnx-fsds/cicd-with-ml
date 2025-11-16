@@ -80,7 +80,7 @@ pipeline {
 
                     echo ""
                     echo "COMPONENTS TO PROCESS:"
-                    echo "   Serving Pipeline: ${env.API_CHANGED}"
+                    echo "   Serving Pipeline: ${env.API_CHANGE}"
                     echo "   Training Pipeline: ${env.PIPELINE_CHANGED}"
                     echo ""
                 }
@@ -248,7 +248,7 @@ pipeline {
         success {
             script {
                 def changedComponents = []
-                if (env.API_CHANGED == 'true') changedComponents.add('Serving Pipeline')
+                if (env.API_CHANGE == 'true') changedComponents.add('Serving Pipeline')
                 if (env.PIPELINE_CHANGED == 'true') changedComponents.add('Training Pipeline')
 
                 def message = """
@@ -260,13 +260,13 @@ pipeline {
 **Branch:** ${BRANCH_NAME}
 
 **What happened:**
-${env.API_CHANGED == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMAGE_TAG}" : ''}
+${env.API_CHANGE == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMAGE_TAG}" : ''}
 ${env.PIPELINE_CHANGED == 'true' ? "• Training pipeline was executed and model updated with version ${env.IMAGE_TAG}" : ''}
 ${changedComponents.isEmpty() ? '• No components changed, pipeline optimized to skip unnecessary steps' : ''}
 
 **Access your services:**
-${env.API_CHANGED == 'true' ? '• KServe Model: kubectl port-forward service/sentiment-model-predictor-default -n ml-models 8080:80' : ''}
-${env.API_CHANGED == 'true' ? '• Test Command: python serving-pipeline/test_kserve.py http://localhost:8080' : ''}
+${env.API_CHANGE == 'true' ? '• KServe Model: kubectl port-forward service/sentiment-model-predictor-default -n ml-models 8080:80' : ''}
+${env.API_CHANGE == 'true' ? '• Test Command: python serving-pipeline/test_kserve.py http://localhost:8080' : ''}
                 """.stripIndent()
 
                 echo message
@@ -281,7 +281,7 @@ ${env.API_CHANGED == 'true' ? '• Test Command: python serving-pipeline/test_ks
 **Build:** #${BUILD_NUMBER}
 **Version:** ${env.SEMANTIC_VERSION ?: env.IMAGE_TAG ?: 'Unknown'}
 **Branch:** ${BRANCH_NAME}
-**Components being processed:** ${env.API_CHANGED == 'true' ? 'Serving Pipeline ' : ''}${env.PIPELINE_CHANGED == 'true' ? 'Training Pipeline' : ''}
+**Components being processed:** ${env.API_CHANGE == 'true' ? 'Serving Pipeline ' : ''}${env.PIPELINE_CHANGED == 'true' ? 'Training Pipeline' : ''}
 
 Please check the build logs for details.
                 """.stripIndent()
