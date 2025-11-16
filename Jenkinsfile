@@ -118,11 +118,11 @@ pipeline {
 
                             echo "Determined Semantic Version: ${semanticVersion}"
 
-                            env.SEMANTIC_VERSION = "${semanticVersion}"
-                            env.IMAGE_TAG = "${semanticVersion}"
+                            env.SEM_VERSION = "${semanticVersion}"
+                            env.IMG_TAG = "${semanticVersion}"
 
-                            echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                            echo "Image Tag: ${env.IMAGE_TAG}"
+                            echo "Semantic Version: ${env.SEM_VERSION}"
+                            echo "Image Tag: ${env.IMG_TAG}"
 
                             // Also get additional version information for logging
                             def versionInfo = sh(
@@ -141,13 +141,13 @@ pipeline {
 
                         } catch (Exception e) {
                             echo "Warning: Could not determine semantic version, falling back to build number"
-                            env.SEMANTIC_VERSION = "BUILD_NUMBER"
-                            env.IMAGE_TAG = "BUILD_NUMBER"
-                            echo "Using fallback version: ${env.IMAGE_TAG}"
+                            env.SEM_VERSION = "BUILD_NUMBER"
+                            env.IMG_TAG = "BUILD_NUMBER"
+                            echo "Using fallback version: ${env.IMG_TAG}"
                         }
 
                         echo ""
-                        echo "FINAL VERSION TO USE: ${env.IMAGE_TAG}"
+                        echo "FINAL VERSION TO USE: ${env.IMG_TAG}"
                         echo ""
                     }
                 }
@@ -171,16 +171,18 @@ pipeline {
                         }
                     }
                     steps {
-                        container('python') {
-                            echo "Running serving pipeline tests..."
-                            sh '''
-                                cd serving-pipeline
-                                pip install --user -r requirements.txt
-                                cd ..
-                                pip install --user pytest httpx
-                                export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
-                                python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
-                            '''
+                        script {
+                            container('python') {
+                                echo "Running serving pipeline tests..."
+                                sh '''
+                                    cd serving-pipeline
+                                    pip install --user -r requirements.txt
+                                    cd ..
+                                    pip install --user pytest httpx
+                                    export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
+                                    python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
+                                '''
+                            }
                         }
                     }
                 }
@@ -200,16 +202,18 @@ pipeline {
                         }
                     }
                     steps {
-                        container('python') {
-                            echo "Running training pipeline tests..."
-                            sh '''
-                                cd training-pipeline
-                                pip install --user -r requirements.txt
-                                cd ..
-                                pip install --user pytest
-                                export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
-                                python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
-                            '''
+                        script {
+                            container('python') {
+                                echo "Running training pipeline tests..."
+                                sh '''
+                                    cd training-pipeline
+                                    pip install --user -r requirements.txt
+                                    cd ..
+                                    pip install --user pytest
+                                    export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
+                                    python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
+                                '''
+                            }
                         }
                     }
                 }
@@ -316,12 +320,12 @@ pipeline {
 
 **Components Processed:** ${changedComponents.join(', ') ?: 'No changes detected'}
 **Build:** #${BUILD_NUMBER}
-**Version:** ${env.SEMANTIC_VERSION ?: env.IMAGE_TAG}
+**Version:** ${env.SEM_VERSION ?: env.IMG_TAG}
 **Branch:** ${BRANCH_NAME}
 
 **What happened:**
-${env.CHANGED_SERVING_PIPELINE == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMAGE_TAG}" : ''}
-${env.CHANGED_TRAINING_PIPELINE == 'true' ? "• Training pipeline was executed and model updated with version ${env.IMAGE_TAG}" : ''}
+${env.CHANGED_SERVING_PIPELINE == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMG_TAG}" : ''}
+${env.CHANGED_TRAINING_PIPELINE == 'true' ? "• Training pipeline was executed and model updated with version ${env.IMG_TAG}" : ''}
 ${changedComponents.isEmpty() ? '• No components changed, pipeline optimized to skip unnecessary steps' : ''}
 
 **Access your services:**
@@ -339,7 +343,7 @@ ${env.CHANGED_SERVING_PIPELINE == 'true' ? '• Test Command: python serving-pip
 **Selective CI/CD Pipeline Failed**
 
 **Build:** #${BUILD_NUMBER}
-**Version:** ${env.SEMANTIC_VERSION ?: env.IMAGE_TAG ?: 'Unknown'}
+**Version:** ${env.SEM_VERSION ?: env.IMG_TAG ?: 'Unknown'}
 **Branch:** ${BRANCH_NAME}
 **Components being processed:** ${env.CHANGED_SERVING_PIPELINE == 'true' ? 'Serving Pipeline ' : ''}${env.CHANGED_TRAINING_PIPELINE == 'true' ? 'Training Pipeline' : ''}
 
