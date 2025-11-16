@@ -90,12 +90,54 @@ pipeline {
         stage('📋 Get Semantic Version') {
             agent {
                 kubernetes {
-                    containerTemplate {
-                        name 'gitversion'
-                        image  'gittools/gitversion:latest'
-                        alwaysPullImage true
-                        workingDir '/repo'
-                    }
+                    cloud 'kubernetes'
+                    podTemplate(
+                        label: 'gitversion-pod',
+                        
+                        // 1. **EXPLICITLY DEFINE THE WORKSPACE VOLUME**
+                        // This volume holds the content of the 'current folder' (the checked out repository)
+                        volumes: [
+                            workspaceVolume(
+                                name: 'workspace-volume', 
+                                // The mountPath here is internal to the Pod setup and defines the source.
+                                // We will reference 'workspace-volume' in the container's volumeMounts.
+                            )
+                        ],
+                        
+                        containers: [
+                            
+                            // --- Container 1: The standard Jenkins JNLP agent ---
+                            containerTemplate(
+                                name: 'jnlp',
+                                image: 'jenkins/inbound-agent:latest',
+                                command: '/usr/bin/dumb-init /bin/sh -c',
+                                args: 'cat',
+                                ttyEnabled: true,
+                                // 2a. Mount the workspace volume to the agent's default location
+                                volumeMounts: [
+                                    volumeMount(
+                                        mountPath: '/home/jenkins/agent/workspace', 
+                                        name: 'workspace-volume'
+                                    )
+                                ]
+                            ),
+
+                            // --- Container 2: The GitVersion Tool Sidecar ---
+                            containerTemplate(
+                                name: 'gitversion',
+                                image: 'gittools/gitversion:latest',
+                                // 2b. **EXPLICITLY MOUNT THE WORKSPACE VOLUME TO /repo**
+                                volumeMounts: [
+                                    volumeMount(
+                                        mountPath: '/repo', // <-- HERE IS THE MOUNT POINT
+                                        name: 'workspace-volume' // <-- Using the volume defined in step 1
+                                    )
+                                ],
+                                // 3. Set the working directory to the mount point
+                                workingDir: '/repo' // <-- HERE IS THE WORKING DIRECTORY
+                            )
+                        ]
+                    )
                 }
             }
             steps {
@@ -108,7 +150,7 @@ pipeline {
                         try {
                             // Get semantic version inside docker agent
                             def semanticVersion = sh(
-                                script: 'gitversion /showvariable FullSemVer',
+                                script: 'GitVersion /showvariable FullSemVer',
                                 returnStdout: true
                             ).trim()
 
