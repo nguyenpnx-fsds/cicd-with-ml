@@ -157,16 +157,14 @@ pipeline {
         stage('Run Tests') {
             parallel {
                 stage('Serving Pipeline Tests') {
-                    // when {
-                    //     environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
-                    // }
                     agent {
                         kubernetes {
                             containerTemplate {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                args '/bin/bash' // Keep container alive
+                                command 'cat'
+                                ttyEnabled true
                             }
                         }
                     }
@@ -197,7 +195,8 @@ pipeline {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                args '/bin/bash' // Keep container alive
+                                command 'cat'
+                                ttyEnabled true
                             }
                         }
                     }
