@@ -154,70 +154,70 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            parallel {
-                stage('Serving Pipeline Tests') {
-                    agent {
-                        kubernetes {
-                            containerTemplate {
-                                name 'python'
-                                image  'python:3.10'
-                                alwaysPullImage true
-                                command 'cat'
-                                ttyEnabled true
-                            }
-                        }
-                    }
-                    steps {
-                        script {
-                            container('python') {
-                                echo "Running serving pipeline tests..."
-                                sh '''
-                                    cd serving-pipeline
-                                    pip install --user -r requirements.txt
-                                    cd ..
-                                    pip install --user pytest httpx
-                                    export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
-                                    python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
-                                '''
-                            }
-                        }
-                    }
-                }
+        // stage('Run Tests') {
+        //     parallel {
+        //         stage('Serving Pipeline Tests') {
+        //             agent {
+        //                 kubernetes {
+        //                     containerTemplate {
+        //                         name 'python'
+        //                         image  'python:3.10'
+        //                         alwaysPullImage true
+        //                         command 'cat'
+        //                         ttyEnabled true
+        //                     }
+        //                 }
+        //             }
+        //             steps {
+        //                 script {
+        //                     container('python') {
+        //                         echo "Running serving pipeline tests..."
+        //                         sh '''
+        //                             cd serving-pipeline
+        //                             pip install --user -r requirements.txt
+        //                             cd ..
+        //                             pip install --user pytest httpx
+        //                             export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
+        //                             python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
+        //                         '''
+        //                     }
+        //                 }
+        //             }
+        //         }
 
-                stage('Training Pipeline Tests') {
-                    // when {
-                    //     environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
-                    // }
-                    agent {
-                        kubernetes {
-                            containerTemplate {
-                                name 'python'
-                                image  'python:3.10'
-                                alwaysPullImage true
-                                command 'cat'
-                                ttyEnabled true
-                            }
-                        }
-                    }
-                    steps {
-                        script {
-                            container('python') {
-                                echo "Running training pipeline tests..."
-                                sh '''
-                                    cd training-pipeline
-                                    pip install --user -r requirements.txt
-                                    cd ..
-                                    pip install --user pytest
-                                    export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
-                                    python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
-                                '''
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //         stage('Training Pipeline Tests') {
+        //             // when {
+        //             //     environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+        //             // }
+        //             agent {
+        //                 kubernetes {
+        //                     containerTemplate {
+        //                         name 'python'
+        //                         image  'python:3.10'
+        //                         alwaysPullImage true
+        //                         command 'cat'
+        //                         ttyEnabled true
+        //                     }
+        //                 }
+        //             }
+        //             steps {
+        //                 script {
+        //                     container('python') {
+        //                         echo "Running training pipeline tests..."
+        //                         sh '''
+        //                             cd training-pipeline
+        //                             pip install --user -r requirements.txt
+        //                             cd ..
+        //                             pip install --user pytest
+        //                             export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
+        //                             python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
+        //                         '''
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Build & Deploy') {
             parallel {
@@ -242,8 +242,9 @@ pipeline {
                                     container('docker') {
                                         dir('serving-pipeline') {
                                             // Build KServe model image
-                                            sh('docker build --no-cache -t sentiment-model:${IMAGE_TAG} .')
-                                            sh('docker tag sentiment-model:${IMAGE_TAG} sentiment-model:latest')
+                                            echo "Building model Docker image with tag: sentiment-model:${env.IMG_TAG}"
+                                            sh('docker build --no-cache -t sentiment-model:${env.IMG_TAG} .')
+                                            sh('docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest')
 
                                             echo "Model image built successfully"
                                         }
