@@ -157,16 +157,16 @@ pipeline {
         stage('Run Tests') {
             parallel {
                 stage('Serving Pipeline Tests') {
-                    when {
-                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
-                    }
+                    // when {
+                    //     environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
+                    // }
                     agent {
                         kubernetes {
                             containerTemplate {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                command 'cat' // Keep container alive
+                                command '/bin/bash' // Keep container alive
                             }
                         }
                     }
@@ -188,16 +188,16 @@ pipeline {
                 }
 
                 stage('Training Pipeline Tests') {
-                    when {
-                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
-                    }
+                    // when {
+                    //     environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+                    // }
                     agent {
                         kubernetes {
                             containerTemplate {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                command 'cat' // Keep container alive
+                                command '/bin/bash' // Keep container alive
                             }
                         }
                     }
