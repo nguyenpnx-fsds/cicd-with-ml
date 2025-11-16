@@ -9,7 +9,7 @@ import time
 import requests
 
 
-def test_kserve_model(base_url: str = "http://localhost:8080"):
+def test_kserve_model(base_url: str = "http://localhost:8081"):
     """
     Test the KServe sentiment model with sample data
 

@@ -242,13 +242,31 @@ pipeline {
                                     container('docker') {
                                         dir('serving-pipeline') {
                                             // Build KServe model image
-                                            echo "Building model Docker image with tag: sentiment-model:${env.IMG_TAG}"
-                                            sh """
-                                                docker build --no-cache -t sentiment-model:${env.IMG_TAG} .
-                                                docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest
-                                            """
+                                            // echo "Building model Docker image with tag: sentiment-model:${env.IMG_TAG}"
+                                            // sh """
+                                            //     docker build --no-cache -t sentiment-model:${env.IMG_TAG} .
+                                            //     docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest
+                                            // """
 
-                                            echo "Model image built successfully"
+                                            // echo "Model image built successfully"
+
+                                            withCredentials([usernamePassword(
+                                                credentialsId: 'dockerhub',
+                                                usernameVariable: 'DOCKER_USER',
+                                                passwordVariable: 'DOCKER_PASS'
+                                            )]) {
+
+                                                sh """
+                                                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                                                    docker build -t $DOCKER_USER/sentiment-model:${env.IMG_TAG} .
+                                                    docker push $DOCKER_USER/sentiment-model:${env.IMG_TAG}
+
+                                                    # Optionally push latest
+                                                    docker tag $DOCKER_USER/sentiment-model:${env.IMG_TAG} $DOCKER_USER/sentiment-model:latest
+                                                    docker push $DOCKER_USER/sentiment-model:latest
+                                                """
+                                            }
                                         }
                                     }
                                 }

@@ -8,7 +8,7 @@ spec:
   predictor:
     containers:
     - name: kserve-container
-      image: sentiment-model:latest
+      image: nguyenpnx/sentiment-model:latest
       ports:
       - containerPort: 8080
         protocol: TCP
