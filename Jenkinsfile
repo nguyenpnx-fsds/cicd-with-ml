@@ -274,13 +274,13 @@ pipeline {
                                             '''
 
                                             // Deploy KServe InferenceService
-                                            sh '''
+                                            sh """
                                                 # Update image tag in inference service
-                                                sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
+                                                sed "s|sentiment-model:latest|sentiment-model:${env.IMG_TAG}|g" inference-service.yaml > inference-service-${env.IMG_TAG}.yaml
 
                                                 # Apply the inference service
-                                                kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
-                                            '''
+                                                kubectl apply -f inference-service-${env.IMG_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
+                                            """
 
                                             echo "KServe InferenceService deployed successfully"
                                         }
@@ -311,7 +311,7 @@ pipeline {
                 //             container('tools') {
                 //                 dir('training-pipeline') {
                 //                     // Build pipeline image
-                //                     def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${IMAGE_TAG}")
+                //                     def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${env.IMG_TAG}")
                 //                     pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
 
                 //                     // Run pipeline (one-time execution)
