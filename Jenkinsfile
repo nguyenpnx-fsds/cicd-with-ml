@@ -24,7 +24,7 @@ pipeline {
 
         // Component change flags (set in Detect Changes stage)
         API_CHANGED = 'false'
-        PIPELINE_CHANGED = 'false'
+        CHANGED_TRAINING_PIPELINE = 'false'
     }
 
     options {
@@ -66,22 +66,20 @@ pipeline {
                     }
 
                     // Set component flags based on changed files
-                    echo "env.API_CHANGED before: ${env.API_CHANGED}"
                     def normalizedFiles = changedFiles.collect { f -> f.toString().trim() }
-                    def apiChanged = normalizedFiles.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') }
+                    def changedAPI = normalizedFiles.any { it.startsWith('api/') }
+                    def changedServingPipeline = normalizedFiles.any { it.startsWith('serving-pipeline/') }
+                    def changedTrainingPipeline = normalizedFiles.any { it.startsWith('training-pipeline/') }
 
-                    env.API_CHANGED = apiChanged ? 'true' : 'false'
-                    env.API_CHANGE = apiChanged ? 'true' : 'false'
-                    echo "DEBUG any(api/): ${apiChanged} ${apiChanged ? 'true' : 'false'}"
-                    echo "API_CHANGED: ${env.API_CHANGED} ${env.API_CHANGE} ${apiChanged ? 'true' : 'false'}"
-
-                    // env.API_CHANGED = (changedFiles.any { f -> f.toString().startsWith('api/') || f.toString().startsWith('serving-pipeline/') }) ? 'true' : 'false'
-                    env.PIPELINE_CHANGED = (changedFiles.any { it.startsWith('training-pipeline/') } || changedFiles.contains('all')) ? 'true' : 'false'
+                    env.CHANGED_API = changedAPI ? 'true' : 'false'
+                    env.CHANGED_SERVING_PIPELINE = changedServingPipeline ? 'true' : 'false'
+                    env.CHANGED_TRAINING_PIPELINE = changedTrainingPipeline ? 'true' : 'false'
 
                     echo ""
                     echo "COMPONENTS TO PROCESS:"
-                    echo "   Serving Pipeline: ${env.API_CHANGE}"
-                    echo "   Training Pipeline: ${env.PIPELINE_CHANGED}"
+                    echo "   API Changes Detected: ${env.CHANGED_API}"
+                    echo "   Serving Pipeline: ${env.CHANGED_SERVING_PIPELINE}"
+                    echo "   Training Pipeline: ${env.CHANGED_TRAINING_PIPELINE}"
                     echo ""
                 }
             }
@@ -120,11 +118,13 @@ pipeline {
 
                             echo "Determined Semantic Version: ${semanticVersion}"
 
-                            env.SEMANTIC_VERSION = semanticVersion
-                            env.IMAGE_TAG = semanticVersion
+                            script {
+                                env.SEMANTIC_VERSION = semanticVersion
+                                env.IMAGE_TAG = semanticVersion
 
-                            echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                            echo "Image Tag: ${env.IMAGE_TAG}"
+                                echo "Semantic Version: ${env.SEMANTIC_VERSION}"
+                                echo "Image Tag: ${env.IMAGE_TAG}"
+                            }
 
                             // Also get additional version information for logging
                             def versionInfo = sh(
@@ -143,8 +143,8 @@ pipeline {
 
                         } catch (Exception e) {
                             echo "Warning: Could not determine semantic version, falling back to build number"
-                            env.SEMANTIC_VERSION = "${BUILD_NUMBER}"
-                            env.IMAGE_TAG = "${BUILD_NUMBER}"
+                            env.SEMANTIC_VERSION = "BUILD_NUMBER"
+                            env.IMAGE_TAG = "BUILD_NUMBER"
                             echo "Using fallback version: ${env.IMAGE_TAG}"
                         }
 
@@ -159,36 +159,58 @@ pipeline {
         stage('Run Tests') {
             parallel {
                 stage('Serving Pipeline Tests') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'python'
+                                image  'python:3.10'
+                                alwaysPullImage true
+                            }
+                        }
+                    }
                     when {
-                        environment name: 'API_CHANGE', value: 'true'
+                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     }
                     steps {
-                        echo "Running serving pipeline tests..."
-                        sh '''
-                            cd serving-pipeline
-                            pip install --user -r requirements.txt
-                            cd ..
-                            pip install --user pytest httpx
-                            export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
-                            python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
-                        '''
+                        container('python') {
+                            echo "Running serving pipeline tests..."
+                            sh '''
+                                cd serving-pipeline
+                                pip install --user -r requirements.txt
+                                cd ..
+                                pip install --user pytest httpx
+                                export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
+                                python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
+                            '''
+                        }
                     }
                 }
 
                 stage('Training Pipeline Tests') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'python'
+                                image  'python:3.10'
+                                alwaysPullImage true
+                            }
+                        }
+                    }
                     when {
-                        environment name: 'PIPELINE_CHANGED', value: 'true'
+                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
                     }
                     steps {
-                        echo "Running training pipeline tests..."
-                        sh '''
-                            cd training-pipeline
-                            pip install --user -r requirements.txt
-                            cd ..
-                            pip install --user pytest
-                            export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
-                            python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
-                        '''
+                        container('python') {
+                            echo "Running training pipeline tests..."
+                            sh '''
+                                cd training-pipeline
+                                pip install --user -r requirements.txt
+                                cd ..
+                                pip install --user pytest
+                                export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
+                                python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
+                            '''
+                        }
                     }
                 }
             }
@@ -197,59 +219,83 @@ pipeline {
         stage('Build & Deploy') {
             parallel {
                 stage('Serving Pipeline Build & Deploy') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'tools'
+                                image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
+                                alwaysPullImage true
+                                privileged true
+                            }
+                        }
+                    }
                     when {
-                        environment name: 'API_CHANGED', value: 'true'
+                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     }
                     steps {
                         echo "Building and deploying model with KServe..."
                         script {
-                            dir('serving-pipeline') {
-                                // Build KServe model image
-                                def modelImage = docker.build("sentiment-model:${IMAGE_TAG}")
-                                modelImage.tag("sentiment-model:latest")
+                            container('tools') {
+                                dir('serving-pipeline') {
+                                    // Build KServe model image
+                                    def modelImage = docker.build("sentiment-model:${IMAGE_TAG}")
+                                    modelImage.tag("sentiment-model:latest")
 
-                                echo "Model image built successfully"
+                                    echo "Model image built successfully"
 
-                                // Create namespace if it doesn't exist
-                                sh '''
-                                    kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
-                                '''
+                                    // Create namespace if it doesn't exist
+                                    sh '''
+                                        kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
+                                    '''
 
-                                // Deploy KServe InferenceService
-                                sh '''
-                                    # Update image tag in inference service
-                                    sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
+                                    // Deploy KServe InferenceService
+                                    sh '''
+                                        # Update image tag in inference service
+                                        sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
 
-                                    # Apply the inference service
-                                    kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
-                                '''
+                                        # Apply the inference service
+                                        kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
+                                    '''
 
-                                echo "KServe InferenceService deployed successfully"
+                                    echo "KServe InferenceService deployed successfully"
+                                }
                             }
                         }
                     }
                 }
 
                 stage('Training Pipeline Build & Deploy') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'tools'
+                                image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
+                                alwaysPullImage true
+                                privileged true
+                            }
+                        }
+                    }
                     when {
-                        environment name: 'PIPELINE_CHANGED', value: 'true'
+                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
                     }
                     steps {
                         echo "Building and running training pipeline..."
                         script {
-                            dir('training-pipeline') {
-                                // Build pipeline image
-                                def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${IMAGE_TAG}")
-                                pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
+                            container('tools') {
+                                dir('training-pipeline') {
+                                    // Build pipeline image
+                                    def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${IMAGE_TAG}")
+                                    pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
 
-                                // Run pipeline (one-time execution)
-                                sh '''
-                                    docker run --rm \
-                                        -v ${WORKSPACE}/models:/app/models \
-                                        ai-sentiment-training-pipeline:latest
-                                '''
+                                    // Run pipeline (one-time execution)
+                                    sh '''
+                                        docker run --rm \
+                                            -v ${WORKSPACE}/models:/app/models \
+                                            ai-sentiment-training-pipeline:latest
+                                    '''
 
-                                echo "Training pipeline executed successfully"
+                                    echo "Training pipeline executed successfully"
+                                }
                             }
                         }
                     }
@@ -262,8 +308,8 @@ pipeline {
         success {
             script {
                 def changedComponents = []
-                if (env.API_CHANGE == 'true') changedComponents.add('Serving Pipeline')
-                if (env.PIPELINE_CHANGED == 'true') changedComponents.add('Training Pipeline')
+                if (env.CHANGED_API == 'true') changedComponents.add('Serving Pipeline')
+                if (env.CHANGED_TRAINING_PIPELINE == 'true') changedComponents.add('Training Pipeline')
 
                 def message = """
 **Selective CI/CD Pipeline Completed Successfully!**
@@ -274,13 +320,13 @@ pipeline {
 **Branch:** ${BRANCH_NAME}
 
 **What happened:**
-${env.API_CHANGE == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMAGE_TAG}" : ''}
-${env.PIPELINE_CHANGED == 'true' ? "• Training pipeline was executed and model updated with version ${env.IMAGE_TAG}" : ''}
+${env.CHANGED_SERVING_PIPELINE == 'true' ? "• Serving pipeline was built and deployed with version ${env.IMAGE_TAG}" : ''}
+${env.CHANGED_TRAINING_PIPELINE == 'true' ? "• Training pipeline was executed and model updated with version ${env.IMAGE_TAG}" : ''}
 ${changedComponents.isEmpty() ? '• No components changed, pipeline optimized to skip unnecessary steps' : ''}
 
 **Access your services:**
-${env.API_CHANGE == 'true' ? '• KServe Model: kubectl port-forward service/sentiment-model-predictor-default -n ml-models 8080:80' : ''}
-${env.API_CHANGE == 'true' ? '• Test Command: python serving-pipeline/test_kserve.py http://localhost:8080' : ''}
+${env.CHANGED_SERVING_PIPELINE == 'true' ? '• KServe Model: kubectl port-forward service/sentiment-model-predictor-default -n ml-models 8080:80' : ''}
+${env.CHANGED_SERVING_PIPELINE == 'true' ? '• Test Command: python serving-pipeline/test_kserve.py http://localhost:8080' : ''}
                 """.stripIndent()
 
                 echo message
@@ -295,7 +341,7 @@ ${env.API_CHANGE == 'true' ? '• Test Command: python serving-pipeline/test_kse
 **Build:** #${BUILD_NUMBER}
 **Version:** ${env.SEMANTIC_VERSION ?: env.IMAGE_TAG ?: 'Unknown'}
 **Branch:** ${BRANCH_NAME}
-**Components being processed:** ${env.API_CHANGE == 'true' ? 'Serving Pipeline ' : ''}${env.PIPELINE_CHANGED == 'true' ? 'Training Pipeline' : ''}
+**Components being processed:** ${env.CHANGED_SERVING_PIPELINE == 'true' ? 'Serving Pipeline ' : ''}${env.CHANGED_TRAINING_PIPELINE == 'true' ? 'Training Pipeline' : ''}
 
 Please check the build logs for details.
                 """.stripIndent()
