@@ -222,87 +222,106 @@ pipeline {
         stage('Build & Deploy') {
             parallel {
                 stage('Serving Pipeline Build & Deploy') {
-                    when {
-                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
-                    }
-                    agent {
-                        kubernetes {
-                            containerTemplate {
-                                name 'tools'
-                                image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
-                                alwaysPullImage true
-                                privileged true
+                    // when {
+                    //     environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
+                    // }
+                    stage('Build image for Serving Pipeline') {
+                        agent {
+                            kubernetes {
+                                containerTemplate {
+                                    name 'docker'
+                                    image  'docker:27-dind'
+                                    alwaysPullImage true
+                                    privileged true
+                                }
+                            }
+                        }
+                        steps {
+                            script {
+                                container('docker') {
+                                    dir('serving-pipeline') {
+                                        // Build KServe model image
+                                        sh('docker build --no-cache -t sentiment-model:${IMAGE_TAG} .')
+                                        sh('docker tag sentiment-model:${IMAGE_TAG} sentiment-model:latest')
+
+                                        echo "Model image built successfully"
+                                    }
+                                }
                             }
                         }
                     }
-                    steps {
-                        echo "Building and deploying model with KServe..."
-                        script {
-                            container('tools') {
-                                dir('serving-pipeline') {
-                                    // Build KServe model image
-                                    def modelImage = docker.build("sentiment-model:${IMAGE_TAG}")
-                                    modelImage.tag("sentiment-model:latest")
+                    stage('Deploy Serving Pipeline') {
+                        agent {
+                            kubernetes {
+                                containerTemplate {
+                                    name 'kubectl'
+                                    image  'bitnami/kubectl:latest'
+                                    alwaysPullImage true
+                                }
+                            }
+                        }
+                        steps {
+                            script {
+                                container('kubectl') {
+                                    dir('serving-pipeline') {
+                                        // Create namespace if it doesn't exist
+                                        sh '''
+                                            kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
+                                        '''
 
-                                    echo "Model image built successfully"
+                                        // Deploy KServe InferenceService
+                                        sh '''
+                                            # Update image tag in inference service
+                                            sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
 
-                                    // Create namespace if it doesn't exist
-                                    sh '''
-                                        kubectl apply -f namespace.yaml || echo "Namespace already exists or kubectl not available"
-                                    '''
+                                            # Apply the inference service
+                                            kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
+                                        '''
 
-                                    // Deploy KServe InferenceService
-                                    sh '''
-                                        # Update image tag in inference service
-                                        sed "s|sentiment-model:latest|sentiment-model:${IMAGE_TAG}|g" inference-service.yaml > inference-service-${IMAGE_TAG}.yaml
-
-                                        # Apply the inference service
-                                        kubectl apply -f inference-service-${IMAGE_TAG}.yaml || echo "KServe deployment failed - check if KServe is installed"
-                                    '''
-
-                                    echo "KServe InferenceService deployed successfully"
+                                        echo "KServe InferenceService deployed successfully"
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                stage('Training Pipeline Build & Deploy') {
-                    agent {
-                        kubernetes {
-                            containerTemplate {
-                                name 'tools'
-                                image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
-                                alwaysPullImage true
-                                privileged true
-                            }
-                        }
-                    }
-                    when {
-                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
-                    }
-                    steps {
-                        echo "Building and running training pipeline..."
-                        script {
-                            container('tools') {
-                                dir('training-pipeline') {
-                                    // Build pipeline image
-                                    def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${IMAGE_TAG}")
-                                    pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
+                // stage('Training Pipeline Build & Deploy') {
+                //     agent {
+                //         kubernetes {
+                //             containerTemplate {
+                //                 name 'tools'
+                //                 image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
+                //                 alwaysPullImage true
+                //                 privileged true
+                //             }
+                //         }
+                //     }
+                //     when {
+                //         environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+                //     }
+                //     steps {
+                //         echo "Building and running training pipeline..."
+                //         script {
+                //             container('tools') {
+                //                 dir('training-pipeline') {
+                //                     // Build pipeline image
+                //                     def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${IMAGE_TAG}")
+                //                     pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
 
-                                    // Run pipeline (one-time execution)
-                                    sh '''
-                                        docker run --rm \
-                                            -v ${WORKSPACE}/models:/app/models \
-                                            ai-sentiment-training-pipeline:latest
-                                    '''
+                //                     // Run pipeline (one-time execution)
+                //                     sh '''
+                //                         docker run --rm \
+                //                             -v ${WORKSPACE}/models:/app/models \
+                //                             ai-sentiment-training-pipeline:latest
+                //                     '''
 
-                                    echo "Training pipeline executed successfully"
-                                }
-                            }
-                        }
-                    }
-                }
+                //                     echo "Training pipeline executed successfully"
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
             }
         }
     }
