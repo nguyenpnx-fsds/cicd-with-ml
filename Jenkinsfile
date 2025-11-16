@@ -90,65 +90,30 @@ pipeline {
         stage('📋 Get Semantic Version') {
             agent {
                 kubernetes {
-                    cloud 'kubernetes'
-                    label: 'gitversion-pod',
-                    
-                    // 1. **EXPLICITLY DEFINE THE WORKSPACE VOLUME**
-                    // This volume holds the content of the 'current folder' (the checked out repository)
-                    volumes: [
-                        workspaceVolume(
-                            name: 'workspace-volume', 
-                            // The mountPath here is internal to the Pod setup and defines the source.
-                            // We will reference 'workspace-volume' in the container's volumeMounts.
-                        )
-                    ],
-                    
-                    containers: [
-                        
-                        // --- Container 1: The standard Jenkins JNLP agent ---
-                        containerTemplate(
-                            name: 'jnlp',
-                            image: 'jenkins/inbound-agent:latest',
-                            command: '/usr/bin/dumb-init /bin/sh -c',
-                            args: 'cat',
-                            ttyEnabled: true,
-                            // 2a. Mount the workspace volume to the agent's default location
-                            volumeMounts: [
-                                volumeMount(
-                                    mountPath: '/home/jenkins/agent/workspace', 
-                                    name: 'workspace-volume'
-                                )
-                            ]
-                        ),
-
-                        // --- Container 2: The GitVersion Tool Sidecar ---
-                        containerTemplate(
-                            name: 'gitversion',
-                            image: 'gittools/gitversion:latest',
-                            // 2b. **EXPLICITLY MOUNT THE WORKSPACE VOLUME TO /repo**
-                            volumeMounts: [
-                                volumeMount(
-                                    mountPath: '/repo', // <-- HERE IS THE MOUNT POINT
-                                    name: 'workspace-volume' // <-- Using the volume defined in step 1
-                                )
-                            ],
-                            // 3. Set the working directory to the mount point
-                            workingDir: '/repo' // <-- HERE IS THE WORKING DIRECTORY
-                        )
-                    ]
+                    containerTemplate {
+                        name 'docker'
+                        image  'docker:27-dind'
+                        alwaysPullImage true
+                    }
                 }
             }
             steps {
                 script {
-                    container('gitversion') {
+                    container('docker') {
                         echo "=" * 50
                         echo "DETERMINING SEMANTIC VERSION"
                         echo "=" * 50
 
                         try {
-                            // Get semantic version inside docker agent
+                            // Get semantic version using GitVersion
                             def semanticVersion = sh(
-                                script: 'GitVersion /showvariable FullSemVer',
+                                script: '''
+                                    docker run --rm \
+                                    -v "$(pwd)":/repo \
+                                    -w /repo \
+                                    gittools/gitversion:latest \
+                                    /repo /showvariable FullSemVer
+                                ''',
                                 returnStdout: true
                             ).trim()
 
@@ -158,11 +123,17 @@ pipeline {
                             echo "Semantic Version: ${env.SEMANTIC_VERSION}"
                             echo "Image Tag: ${env.IMAGE_TAG}"
 
-                            // Full JSON metadata
+                            // Also get additional version information for logging
                             def versionInfo = sh(
-                                script: 'GitVersion /output json',
+                                script: '''
+                                    docker run --rm \
+                                    -v "$(pwd)":/repo \
+                                    -w /repo \
+                                    gittools/gitversion:latest \
+                                    /repo /output json
+                                ''',
                                 returnStdout: true
-                                ).trim()
+                            ).trim()
 
                             echo "Full Version Information:"
                             echo versionInfo
