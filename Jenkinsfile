@@ -118,13 +118,11 @@ pipeline {
 
                             echo "Determined Semantic Version: ${semanticVersion}"
 
-                            script {
-                                env.SEMANTIC_VERSION = semanticVersion
-                                env.IMAGE_TAG = semanticVersion
+                            env.SEMANTIC_VERSION = "${semanticVersion}"
+                            env.IMAGE_TAG = "${semanticVersion}"
 
-                                echo "Semantic Version: ${env.SEMANTIC_VERSION}"
-                                echo "Image Tag: ${env.IMAGE_TAG}"
-                            }
+                            echo "Semantic Version: ${env.SEMANTIC_VERSION}"
+                            echo "Image Tag: ${env.IMAGE_TAG}"
 
                             // Also get additional version information for logging
                             def versionInfo = sh(
@@ -159,17 +157,18 @@ pipeline {
         stage('Run Tests') {
             parallel {
                 stage('Serving Pipeline Tests') {
+                    when {
+                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
+                    }
                     agent {
                         kubernetes {
                             containerTemplate {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
+                                command 'cat' // Keep container alive
                             }
                         }
-                    }
-                    when {
-                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     }
                     steps {
                         container('python') {
@@ -187,17 +186,18 @@ pipeline {
                 }
 
                 stage('Training Pipeline Tests') {
+                    when {
+                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+                    }
                     agent {
                         kubernetes {
                             containerTemplate {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
+                                command 'cat' // Keep container alive
                             }
                         }
-                    }
-                    when {
-                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
                     }
                     steps {
                         container('python') {
@@ -219,6 +219,9 @@ pipeline {
         stage('Build & Deploy') {
             parallel {
                 stage('Serving Pipeline Build & Deploy') {
+                    when {
+                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
+                    }
                     agent {
                         kubernetes {
                             containerTemplate {
@@ -228,9 +231,6 @@ pipeline {
                                 privileged true
                             }
                         }
-                    }
-                    when {
-                        environment name: 'CHANGED_SERVING_PIPELINE', value: 'true'
                     }
                     steps {
                         echo "Building and deploying model with KServe..."
