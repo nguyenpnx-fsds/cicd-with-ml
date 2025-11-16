@@ -93,7 +93,7 @@ pipeline {
                     kubernetes {
                         containerTemplate {
                             name 'kube'
-                            image  'xuannguyenhehe/custom-jenkins:0.0.4'
+                            image  'xuannguyenhehe/custom-jenkins:0.0.3'
                             alwaysPullImage true
                         }
                     }

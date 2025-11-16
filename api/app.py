@@ -15,7 +15,7 @@ logger.add(
 app = FastAPI(
     title="Sentiment Analysis API",
     description="A simple sentiment analysis API for CI/CD demonstration",
-    version="1.0.34",
+    version="1.0.35",
 )
 
 
