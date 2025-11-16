@@ -98,6 +98,7 @@ pipeline {
                           - name: python
                             image: python:3.8
                 """
+                }
             }
             steps {
                 echo 'Testing model correctness..'
