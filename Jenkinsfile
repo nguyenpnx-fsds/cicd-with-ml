@@ -166,7 +166,7 @@ pipeline {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                command '/bin/bash' // Keep container alive
+                                args '/bin/bash' // Keep container alive
                             }
                         }
                     }
@@ -197,7 +197,7 @@ pipeline {
                                 name 'python'
                                 image  'python:3.10'
                                 alwaysPullImage true
-                                command '/bin/bash' // Keep container alive
+                                args '/bin/bash' // Keep container alive
                             }
                         }
                     }
