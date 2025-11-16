@@ -94,6 +94,7 @@ pipeline {
                         name 'docker'
                         image  'docker:27-dind'
                         alwaysPullImage true
+                        privileged true
                     }
                 }
             }
