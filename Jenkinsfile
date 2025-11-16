@@ -243,8 +243,10 @@ pipeline {
                                         dir('serving-pipeline') {
                                             // Build KServe model image
                                             echo "Building model Docker image with tag: sentiment-model:${env.IMG_TAG}"
-                                            sh('docker build --no-cache -t sentiment-model:${env.IMG_TAG} .')
-                                            sh('docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest')
+                                            sh """
+                                                docker build --no-cache -t sentiment-model:${env.IMG_TAG} .
+                                                docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest
+                                            """
 
                                             echo "Model image built successfully"
                                         }
