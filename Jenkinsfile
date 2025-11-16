@@ -66,10 +66,11 @@ pipeline {
                     }
 
                     // Set component flags based on changed files
+                    echo "env.API_CHANGED before: ${env.API_CHANGED}"
                     def normalizedFiles = changedFiles.collect { f -> f.toString().trim() }
                     def apiChanged = normalizedFiles.any { it.startsWith('api/') || it.startsWith('serving-pipeline/') }
 
-                    env.API_CHANGED = apiChanged ? 'true' : 'false'
+                    def env.API_CHANGED = apiChanged ? 'true' : 'false'
                     echo "DEBUG any(api/): ${apiChanged} ${apiChanged ? 'true' : 'false'}"
                     echo "API_CHANGED: ${env.API_CHANGED} ${apiChanged ? 'true' : 'false'}"
 
