@@ -17,21 +17,11 @@ pipeline {
     environment {
         // Simple environment variables
         PROJECT_NAME = 'ai-sentiment'
-
-        // Semantic version variables (set in Get Semantic Version stage)
-        // SEMANTIC_VERSION = ''
-        // IMAGE_TAG = ''
-
-        // Component change flags (set in Detect Changes stage)
-        // API_CHANGED = 'false'
-        // CHANGED_TRAINING_PIPELINE = 'false'
     }
 
     options {
         // Keep only the last 10 builds
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        // Add timestamps to console output
-        // timestamps()
     }
 
     stages {
@@ -62,14 +52,14 @@ pipeline {
 
                     echo "Changed Files:"
                     changedFiles.each { file ->
-                        echo " -> '${file}' (length: ${file.length()}) '${file.startsWith('api/')}'"
+                        echo " -> '${file}' '${file.startsWith('src/api/')} ${file.startsWith('src/serving-pipeline/')} ${file.startsWith('src/training-pipeline/')}'"
                     }
 
                     // Set component flags based on changed files
                     def normalizedFiles = changedFiles.collect { f -> f.toString().trim() }
-                    def changedAPI = normalizedFiles.any { it.startsWith('api/') }
-                    def changedServingPipeline = normalizedFiles.any { it.startsWith('serving-pipeline/') }
-                    def changedTrainingPipeline = normalizedFiles.any { it.startsWith('training-pipeline/') }
+                    def changedAPI = normalizedFiles.any { it.startsWith('src/api/') }
+                    def changedServingPipeline = normalizedFiles.any { it.startsWith('src/serving-pipeline/') }
+                    def changedTrainingPipeline = normalizedFiles.any { it.startsWith('src/training-pipeline/') }
 
                     env.CHANGED_API = changedAPI ? 'true' : 'false'
                     env.CHANGED_SERVING_PIPELINE = changedServingPipeline ? 'true' : 'false'
@@ -154,70 +144,70 @@ pipeline {
             }
         }
 
-        // stage('Run Tests') {
-        //     parallel {
-        //         stage('Serving Pipeline Tests') {
-        //             agent {
-        //                 kubernetes {
-        //                     containerTemplate {
-        //                         name 'python'
-        //                         image  'python:3.10'
-        //                         alwaysPullImage true
-        //                         command 'cat'
-        //                         ttyEnabled true
-        //                     }
-        //                 }
-        //             }
-        //             steps {
-        //                 script {
-        //                     container('python') {
-        //                         echo "Running serving pipeline tests..."
-        //                         sh '''
-        //                             cd serving-pipeline
-        //                             pip install --user -r requirements.txt
-        //                             cd ..
-        //                             pip install --user pytest httpx
-        //                             export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
-        //                             python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
-        //                         '''
-        //                     }
-        //                 }
-        //             }
-        //         }
+        stage('Run Tests') {
+            parallel {
+                stage('Serving Pipeline Tests') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'python'
+                                image  'python:3.10'
+                                alwaysPullImage true
+                                command 'cat'
+                                ttyEnabled true
+                            }
+                        }
+                    }
+                    steps {
+                        script {
+                            container('python') {
+                                echo "Running serving pipeline tests..."
+                                sh '''
+                                    cd serving-pipeline
+                                    pip install --user -r requirements.txt
+                                    cd ..
+                                    pip install --user pytest httpx
+                                    export PYTHONPATH="${WORKSPACE}/serving-pipeline:$PYTHONPATH"
+                                    python -m pytest tests/test_api.py -v || echo "Serving pipeline tests completed"
+                                '''
+                            }
+                        }
+                    }
+                }
 
-        //         stage('Training Pipeline Tests') {
-        //             // when {
-        //             //     environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
-        //             // }
-        //             agent {
-        //                 kubernetes {
-        //                     containerTemplate {
-        //                         name 'python'
-        //                         image  'python:3.10'
-        //                         alwaysPullImage true
-        //                         command 'cat'
-        //                         ttyEnabled true
-        //                     }
-        //                 }
-        //             }
-        //             steps {
-        //                 script {
-        //                     container('python') {
-        //                         echo "Running training pipeline tests..."
-        //                         sh '''
-        //                             cd training-pipeline
-        //                             pip install --user -r requirements.txt
-        //                             cd ..
-        //                             pip install --user pytest
-        //                             export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
-        //                             python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
-        //                         '''
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                stage('Training Pipeline Tests') {
+                    // when {
+                    //     environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+                    // }
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'python'
+                                image  'python:3.10'
+                                alwaysPullImage true
+                                command 'cat'
+                                ttyEnabled true
+                            }
+                        }
+                    }
+                    steps {
+                        script {
+                            container('python') {
+                                echo "Running training pipeline tests..."
+                                sh '''
+                                    cd training-pipeline
+                                    pip install --user -r requirements.txt
+                                    cd ..
+                                    pip install --user pytest
+                                    export PYTHONPATH="${WORKSPACE}/training-pipeline:$PYTHONPATH"
+                                    python -m pytest tests/test_data_pipeline.py -v || echo "Training pipeline tests completed"
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Build & Deploy') {
             parallel {
@@ -241,15 +231,6 @@ pipeline {
                                 script {
                                     container('docker') {
                                         dir('serving-pipeline') {
-                                            // Build KServe model image
-                                            // echo "Building model Docker image with tag: sentiment-model:${env.IMG_TAG}"
-                                            // sh """
-                                            //     docker build --no-cache -t sentiment-model:${env.IMG_TAG} .
-                                            //     docker tag sentiment-model:${env.IMG_TAG} sentiment-model:latest
-                                            // """
-
-                                            // echo "Model image built successfully"
-
                                             withCredentials([usernamePassword(
                                                 credentialsId: 'dockerhub',
                                                 usernameVariable: 'DOCKER_USER',
@@ -309,42 +290,42 @@ pipeline {
                     }
                 }
 
-                // stage('Training Pipeline Build & Deploy') {
-                //     agent {
-                //         kubernetes {
-                //             containerTemplate {
-                //                 name 'tools'
-                //                 image  'ghcr.io/jenkinsci/agent-k8s-tools:latest'
-                //                 alwaysPullImage true
-                //                 privileged true
-                //             }
-                //         }
-                //     }
-                //     when {
-                //         environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
-                //     }
-                //     steps {
-                //         echo "Building and running training pipeline..."
-                //         script {
-                //             container('tools') {
-                //                 dir('training-pipeline') {
-                //                     // Build pipeline image
-                //                     def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${env.IMG_TAG}")
-                //                     pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
+                stage('Training Pipeline Build & Deploy') {
+                    agent {
+                        kubernetes {
+                            containerTemplate {
+                                name 'docker'
+                                image 'docker:27-dind'
+                                alwaysPullImage true
+                                privileged true
+                            }
+                        }
+                    }
+                    when {
+                        environment name: 'CHANGED_TRAINING_PIPELINE', value: 'true'
+                    }
+                    steps {
+                        echo "Building and running training pipeline..."
+                        script {
+                            container('docker') {
+                                dir('training-pipeline') {
+                                    // Build pipeline image
+                                    def pipelineImage = docker.build("${PROJECT_NAME}-training-pipeline:${env.IMG_TAG}")
+                                    pipelineImage.tag("${PROJECT_NAME}-training-pipeline:latest")
 
-                //                     // Run pipeline (one-time execution)
-                //                     sh '''
-                //                         docker run --rm \
-                //                             -v ${WORKSPACE}/models:/app/models \
-                //                             ai-sentiment-training-pipeline:latest
-                //                     '''
+                                    // Run pipeline (one-time execution)
+                                    sh '''
+                                        docker run --rm \
+                                            -v ${WORKSPACE}/models:/app/models \
+                                            ai-sentiment-training-pipeline:latest
+                                    '''
 
-                //                     echo "Training pipeline executed successfully"
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                                    echo "Training pipeline executed successfully"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -371,7 +352,7 @@ ${changedComponents.isEmpty() ? '• No components changed, pipeline optimized t
 
 **Access your services:**
 ${env.CHANGED_SERVING_PIPELINE == 'true' ? '• KServe Model: kubectl port-forward service/sentiment-model-predictor-default -n ml-models 8080:80' : ''}
-${env.CHANGED_SERVING_PIPELINE == 'true' ? '• Test Command: python serving-pipeline/test_kserve.py http://localhost:8080' : ''}
+${env.CHANGED_SERVING_PIPELINE == 'true' ? '• Test Command: python src/serving-pipeline/test_kserve.py http://localhost:8080' : ''}
                 """.stripIndent()
 
                 echo message

@@ -8,6 +8,11 @@ import time
 
 import requests
 
+headers = {
+    "Host": "sentiment-model.jenkins.example.com",
+    "Content-Type": "application/json",
+}
+
 
 def test_kserve_model(base_url: str = "http://localhost:8081"):
     """
@@ -45,8 +50,8 @@ def test_kserve_model(base_url: str = "http://localhost:8081"):
             response = requests.post(
                 predict_url,
                 json=test_case,
-                headers={"Content-Type": "application/json"},
                 timeout=10,
+                headers=headers,
             )
 
             if response.status_code == 200:
@@ -70,14 +75,18 @@ def test_kserve_model(base_url: str = "http://localhost:8081"):
         time.sleep(0.5)
 
 
-def check_model_health(base_url: str = "http://localhost:8080"):
+def check_model_health(base_url: str = "http://localhost:8082"):
     """
     Check if the KServe model is healthy and ready
     """
     health_url = f"{base_url}/v1/models/sentiment-model"
 
     try:
-        response = requests.get(health_url, timeout=5)
+        response = requests.get(
+            health_url,
+            timeout=5,
+            headers=headers,
+        )
         if response.status_code == 200:
             model_info = response.json()
             print("Model Status:")
@@ -96,7 +105,7 @@ if __name__ == "__main__":
     import sys
 
     # Get base URL from command line argument or use default
-    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
+    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8082"
 
     print(f"Testing KServe model at: {base_url}")
 

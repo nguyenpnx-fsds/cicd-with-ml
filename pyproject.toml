@@ -1,0 +1,14 @@
+[project]
+name = "9-cicd-in-ml"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "kserve",
+    "pytest",
+    "pytest-cov",
+    "httpx",
+    "fastapi[all]",
+    "loguru"
+]

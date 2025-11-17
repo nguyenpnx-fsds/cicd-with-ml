@@ -1,66 +1,101 @@
-# AI Project with Selective CI/CD
+# 0. Setup infra
 
-A simple AI project demonstrating how to implement selective CI/CD with Jenkins based on file changes. This project includes:
+## 0.1. Install Jenkins
 
-- **API Service**: FastAPI-based sentiment analysis API
-- **Data Pipeline**: Simple data processing and model training pipeline
-- **CI/CD**: Jenkins pipeline that only runs for changed components
+```bash
+helm repo add jenkins https://charts.jenkins.io
+helm repo update
+kubectl create namespace jenkins
+helm install jenkins jenkins/jenkins -n jenkins
+```
 
-## Components
+Run the following cmd to get password
 
-### API Service
-- Simple sentiment analysis API using FastAPI
-- Returns positive/negative sentiment for text input
-- Containerized with Docker
+```bash
+kubectl exec --namespace jenkins -it svc/jenkins -c jenkins -- /bin/cat /run/secrets/additional/chart-admin-password && echo
+```
 
-### Data Pipeline
-- Trains a simple sentiment analysis model
-- Processes data and saves model artifacts
-- Can be triggered independently
+Example:
+```
+user: admin
+password: <password-jenkins>
+```
+## 0.2. Install Jenkins plugin
 
-### CI/CD Strategy
-The Jenkins pipeline detects changes in specific directories and only runs the relevant CI/CD steps:
-- Changes in `api/` → Run API tests, build, and deploy
-- Changes in `data-pipeline/` → Run pipeline tests, build, and deploy
-- Changes in both → Run both pipelines
-- Changes in other files (README, configs) → Run basic validation only
+- Go to Manage Jenkins → Plugins → Available plugins
+- Install: GitHub Integration Plugin and Docker and Docker pipeline and Kubernetes CLI
 
-## Quick Start
+### 0.3. Init repo and add remote repo
 
-1. **Local Development**:
-   ```bash
-   # Start all services
-   docker compose up --build
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin <REMOTE_URL>
+git branch --set-upstream-to=origin/main main
+git push -u origin main
+```
 
-   # API will be available at http://localhost:8000
-   # Check API docs at http://localhost:8000/docs
-   ```
+### 0.4. Download and run ngrok to expose domain of Jenkins
 
-2. **Test the API**:
-   ```bash
-   curl -X POST "http://localhost:8000/predict" \
-        -H "Content-Type: application/json" \
-        -d '{"text": "I love this project!"}'
-   ```
-   ![alt text](assets/api1.png)
+```bash
+kubectl --namespace jenkins port-forward svc/jenkins 8080:8080
+```
 
-3. **Run Data Pipeline**:
-   ```bash
-   cd data-pipeline
-   pip install -r requirements.txt
-   python train_model.py
-   ```
+```bash
+ngrok http 8080
+```
+### 0.5. Add jenkins ngrok url to Github
+Access `your Github repo` => choose `Settings` => choose `Webhook` and paste above url of Jenkisn to it.
 
-## Jenkins Setup
+Example: `https://<id>.ngrok-free.app/github-webhook/`
 
-1. Create a new Jenkins job
-2. Use the `jenkins/Jenkinsfile` as the pipeline script
-3. Configure webhook to trigger on repository changes
-4. The pipeline will automatically detect which components changed and run appropriate CI/CD steps
+Then, choose more Actions to allow push/pull code.
 
-## Learning Objectives
+## 0.6. Configure Jenkins Credentials for GitHub and Docker
 
-- Understand modular CI/CD design
-- Learn to implement selective pipeline execution
-- Practice containerization with Docker
-- Experience with FastAPI and simple ML workflows
+In Jenkins: Go to `Manage Jenkins` → `Credentials` → `Global` → `Add Credentials`
+- Type: Username and Password or Personal Access Token
+- Scope: Global
+
+For Github, add username/password with id `github-token`.
+
+For Docker, add username/password with id `dockerhub`.
+
+## 0.7. Create a Jenkins pipeline
+
+Choose `New item` => fill pipeline name => Choose multiple branch
+
+Go to `Configure` => `Branch Sources` => Choose above Github credentials. => Choose `Scan Multibranch Pipeline Triggers` with 1 mins => Choose above Docker credentials.
+
+## 0.8. Apply permissions for default Service Account of Jenkins
+
+```bash
+cd deployment
+kubectl apply -f jenkins-role.yaml
+```
+
+# 1. Try to commit in folder `src`
+
+```bash
+git add <path-to-files>
+git commit -m 'feat: add something'
+git push
+```
+
+# 2. Test model `sentiment`
+
+## 2.1. Install local env
+
+```bash
+uv venv
+uv sync
+source .venv/bin/activate
+```
+
+## 2.2. Test
+
+```python
+python tests/test_kserve.py
+```
